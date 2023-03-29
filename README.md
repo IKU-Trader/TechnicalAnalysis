@@ -1,0 +1,2 @@
+# TechnicalAnalysis
+TechnicalAnalysis for trade
