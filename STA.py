@@ -5,7 +5,6 @@ Created on Wed Jan  4 18:19:54 2023
 @author: IKU-Trader
 """
 
-import sys
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../Utilities'))
