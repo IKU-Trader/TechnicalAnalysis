@@ -15,10 +15,7 @@ from MathArray import MathArray
 from const import const
 
 def nans(length):
-    out = []
-    for i in range(length):
-        out.append(np.nan)
-    return out
+    return [np.nan for _ in range(length)]
 
 def arrays2dic(tohlcv:[]):
     dic = {}
@@ -38,6 +35,11 @@ class TechnicalAnalysis:
     TR: TAMethod = 'tr'
     SMA: TAMethod = 'sma'
     HL2: TAMethod = 'hl2'
+    DIplus: TAMethod = 'diplus'
+    DIminus: TAMethod = 'diminus'
+    DX: TAMethod = 'dx'
+    ADX: TAMethod = 'adx'
+    
     ATR_BAND_UPPER: TAMethod = 'atr_band_upper'
     ATR_BAND_LOWER: TAMethod = 'atr_band_lower'
     ATR_BREAKUP_SIGNAL: TAMethod = 'atr_breakup_signal'
@@ -66,7 +68,7 @@ class TechnicalAnalysis:
     # -----    
     
     @staticmethod 
-    def candleBody(open_price, high_price, low_price, close_price):
+    def candleBody(open_price,  high_price, low_price, close_price):
         body_low = min([high_price, low_price])
         body_high = max([high_price, low_price])
         body = body_high - body_low
@@ -84,9 +86,9 @@ class TechnicalAnalysis:
 
     @staticmethod
     def hl2(dic):
-        high = dic[const.HIGH]
-        low = dic[const.LOW]
-        out = MathArray.addArray(high, low)
+        hi = dic[const.HIGH]
+        lo = dic[const.LOW]
+        out = MathArray.addArray(hi, lo)
         out = MathArray.multiply(out, 0.5)
         return out
     
@@ -109,55 +111,91 @@ class TechnicalAnalysis:
         return out            
 
     @staticmethod         
-    def tr(dic):
-        high = dic[const.HIGH]
-        low = dic[const.LOW]
-        close = dic[const.CLOSE]
-        n = len(close)
+    def tr(hi, lo, cl):
+        n = len(cl)
         out = nans(n)
-        out[0] = high[0] - low[0]
+        out[0] = hi[0] - lo[0]
         for i in range(1, n):
-            r1 = np.abs(high[i] - low[i])
-            r2 = np.abs(high[i] - close[i - 1])
-            r3 = np.abs(close[i - 1] - low[i])
+            r1 = np.abs(hi[i] - lo[i])
+            r2 = np.abs(hi[i] - cl[i - 1])
+            r3 = np.abs(cl[i - 1] - lo[i])
             out[i] = np.max([r1, r2, r3])
         return out
        
     @staticmethod
-    def atr(dic, window):
-        trdata = TechnicalAnalysis.tr(dic)
+    def atr(hi, lo, cl, window):
+        trdata = TechnicalAnalysis.tr(hi, lo, cl)
         out = TechnicalAnalysis.sma(trdata, window)
         return (out, trdata)
     
     @staticmethod
-    def atrBand(dic, k):
-        atr = dic[TechnicalAnalysis.ATR]
-        inp = dic[const.CLOSE]
+    def di(hi, lo, cl, window):
+        n = len(hi)
+        dmp = nans(n)
+        dmn = nans(n)
+        for i in range(1, n):
+            dmp[i] = hi[i] - hi[i - 1]
+            dmn[i] = lo[i - 1] - lo[i]
+        dmplus = nans(n)
+        dmminus = nans(n)
+        for i in range(1, n):
+            if dmp[i] < 0 and dmn[i] < 0:
+                dmplus[i] = 0
+                dmminus[i] = 0
+            elif dmp[i] > dmn[i]:
+                dmplus[i] = dmp[i]
+                dmminus[i] = 0
+            elif dmp[i] < dmn[i]:
+                dmplus[i] = 0
+                dmminus[i] = dmn[i]
+            elif dmp[i] == dmn[i]:
+                dmplus[i] = 0
+                dmminus[i] = 0
+            elif dmp[i] < 0 and dmn[i] < 0:
+                dmplus[i] = 0
+                dmminus[i] = 0   
+        diplus = nans(n)
+        diminus = nans(n)
+        tr = TechnicalAnalysis().tr(hi, lo, cl)
+        for i in range(window, n):
+            diplus[i] = 100.0 * sum(dmplus[i - window + 1 : i + 1]) / sum(tr[i - window  + 1: i + 1])
+            diminus[i] = 100.0 * sum(dmminus[i - window + 1: i + 1]) / sum(tr[i - window + 1: i + 1])
+        return (dmplus, dmminus, diplus, diminus)
+    
+    @staticmethod
+    def adx(hi, lo, cl, window):
+        (dmplus, dmminus, diplus, diminus) = TechnicalAnalysis().di(hi, lo, cl, window)
+        n = len(diplus)
+        dx = nans(n)
+        for i in range(1, n):
+            dx[i] = 100.0 * abs(diplus[i] - diminus[i]) / (diplus[i] + diminus[i])        
+        adx = nans(n)
+        for i in range(window * 2 - 1, n):
+            adx[i] = sum(dx[i - window + 1: i + 1]) / float(window)
+        return adx
+        
+    @staticmethod
+    def atrBand(cl, atr, k):
         m =  MathArray.multiply(atr, k)
-        upper = MathArray.addArray(inp, m)
-        lower = MathArray.subtractArray(inp, m)
+        upper = MathArray.addArray(cl, m)
+        lower = MathArray.subtractArray(cl, m)
         return (upper, lower)
     
     @staticmethod
-    def breakSignal(dic, key, is_up, offset=1):
+    def breakSignal(op, cl, level, is_up, offset=1):
         if offset < 0:
             return None
-        level = dic[key]
-        oo = dic[const.OPEN]
-        hh = dic[const.HIGH]
-        ll = dic[const.LOW]
-        cc = dic[const.CLOSE]
-        n = len(cc)
+        n = len(cl)
         signal = []
         for i in range(n):
             if i < offset:
                 signal.append(0)
                 continue
             if is_up:
-                p = max(oo[i], cc[i])
+                p = max(op[i], cl[i])
                 t = p > level[i - offset]
             else:
-                p = min(oo[i], cc[i])
+                p = min(op[i], cl[i])
                 t = p < level[i - offset]
             if t:
                 signal.append(1)
@@ -237,32 +275,39 @@ class TechnicalAnalysis:
     
     @staticmethod
     def indicator(data:dict, key:str, params:dict, name:str=None, should_set=True):
+        op = data[const.OPEN]
+        hi = data[const.HIGH]
+        lo = data[const.LOW]
+        cl = data[const.CLOSE]
         if TechnicalAnalysis.WINDOW in params.keys():
             window = params[TechnicalAnalysis.WINDOW]
         if TechnicalAnalysis.COEFF in params.keys():
             coeff = params[TechnicalAnalysis.COEFF]        
         if key == TechnicalAnalysis.SMA:
-            array = TechnicalAnalysis.sma(data[const.CLOSE], window)
+            array = TechnicalAnalysis.sma(cl, window)
         elif key == TechnicalAnalysis.ATR:
-            array, _ = TechnicalAnalysis.atr(data, window)
+            array, _ = TechnicalAnalysis.atr(hi, lo, cl, window)
         elif key == TechnicalAnalysis.ATR_BAND_UPPER or key == TechnicalAnalysis.ATR_BAND_LOWER:
             coeff = params[TechnicalAnalysis.COEFF]
-            upper, lower = TechnicalAnalysis.atrBand(data, coeff)
+            atr = data[TechnicalAnalysis.ATR]
+            upper, lower = TechnicalAnalysis.atrBand(cl, atr, coeff)
             if key == TechnicalAnalysis.ATR_BAND_UPPER:
                 array = upper
             else:
                 array = lower
         elif key == TechnicalAnalysis.ATR_BREAKUP_SIGNAL:
-            array = TechnicalAnalysis.breakSignal(data, TechnicalAnalysis.ATR_BAND_UPPER, True)
+            level = data[TechnicalAnalysis.ATR_BAND_UPPER]
+            array = TechnicalAnalysis.breakSignal(data, level, True)
         elif key == TechnicalAnalysis.ATR_BREAKDOWN_SIGNAL:
-            array = TechnicalAnalysis.breakSignal(data, TechnicalAnalysis.ATR_BAND_LOWER, False)
+            level = TechnicalAnalysis.ATR_BAND_LOWER
+            array = TechnicalAnalysis.breakSignal(op, cl, level, False)
         elif key == TechnicalAnalysis.MA_TREND_BAND:
             threshold = params[TechnicalAnalysis.THRESHOLD]
             ma_keys = params[TechnicalAnalysis.MA_KEYS]
             mas = [data[key] for key in ma_keys]
             if len(mas) != 3:
                 raise Exception('Bad MA_TREND_BAND parameter')
-            array = TechnicalAnalysis.maTrendBand(data[const.OPEN], data[const.HIGH], data[const.LOW], data[const.CLOSE], mas, threshold)
+            array = TechnicalAnalysis.maTrendBand(op, hi, lo, cl, mas, threshold)
         elif key == TechnicalAnalysis.PATTERN_MATCH:
             source = params[TechnicalAnalysis.SOURCE]
             signal = data[source]

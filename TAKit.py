@@ -5,7 +5,7 @@ Created on Fri Mar 31 15:33:20 2023
 @author: IKU-Trader
 """
 
-from STA import TechnicalAnalysis as ta
+from TA import TechnicalAnalysis as ta
 from const import const
 
 
