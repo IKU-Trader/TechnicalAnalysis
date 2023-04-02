@@ -13,6 +13,7 @@ import numpy as np
 from Utils import Utils
 from MathArray import MathArray
 from const import const
+from DataBuffer import Converter
 
 def nans(length):
     return [np.nan for _ in range(length)]
@@ -27,7 +28,7 @@ def arrays2dic(tohlcv:[]):
     if len(tohlcv) > 5:
         dic[const.VOLUME] = tohlcv[5]
     return dic
-
+    
 class TechnicalAnalysis:
     # ----- constants
     TAMethod = str
@@ -39,6 +40,7 @@ class TechnicalAnalysis:
     DIminus: TAMethod = 'diminus'
     DX: TAMethod = 'dx'
     ADX: TAMethod = 'adx'
+    SLOPE: TAMethod = 'slope'
     
     ATR_BAND_UPPER: TAMethod = 'atr_band_upper'
     ATR_BAND_LOWER: TAMethod = 'atr_band_lower'
@@ -47,6 +49,10 @@ class TechnicalAnalysis:
 
     MA_TREND_BAND: TAMethod = 'ma_trend_band'
     PATTERN_MATCH: TAMethod = 'pattern_match'
+    
+    UPPER_TIMEFRAME: TAMethod = 'upper_timeframe'
+    
+    # ----- parameter keys
 
     TAParam = str
     WINDOW: TAParam = 'window'
@@ -65,6 +71,7 @@ class TechnicalAnalysis:
 
     SOURCE: TAParam = 'source'
     PATTERNS: TAParam = 'patterns'
+    TIMEFRAME: TAParam = 'timeframe'
     # -----    
     
     @staticmethod 
@@ -173,7 +180,19 @@ class TechnicalAnalysis:
         for i in range(window * 2 - 1, n):
             adx[i] = sum(dx[i - window + 1: i + 1]) / float(window)
         return adx
-        
+    
+    @staticmethod 
+    def slope(array, window):
+        data = np.array(array)
+        n = len(array)
+        out = nans(n)
+        x = np.arange(0, window)
+        for i in range(window - 1, n):            
+            y = data[i - window + 1: i + 1]
+            m, offset = np.polyfit(x, y, 1)        
+            out[i] = 100.0 * m / data[i - window + 1]
+        return out
+    
     @staticmethod
     def atrBand(cl, atr, k):
         m =  MathArray.multiply(atr, k)
@@ -240,6 +259,34 @@ class TechnicalAnalysis:
                 if signal[i: i + m] == pattern:
                     out[i + m  - 1 + offset] = value
         return out
+
+    @staticmethod
+    def upperTimeframe(dic, refkey, time_symbol, ma_window=0):
+        time = dic[const.TIME]
+        arrays = [time, dic[const.OPEN], dic[const.HIGH], dic[const.LOW], dic[const.CLOSE]]
+        value, unit = const.timeSymbol2elements(time_symbol)
+        tohlcv_arrays, candles = Converter.resample(arrays, value, unit)    
+        sample_time = tohlcv_arrays[0]
+        try:
+            index = [const.TIME, const.OPEN, const.HIGH, const.LOW, const.CLOSE].index(refkey)
+        except:
+            raise Exception('Bad source key' + refkey)
+        sample_data = tohlcv_arrays[index]
+        if ma_window > 0:
+            sample_data = TechnicalAnalysis.sma(sample_data, ma_window)
+        data = nans(len(time))
+        current = np.nan
+        i = 0
+        for j, t in enumerate(time):
+            if t == sample_time[i]:
+                current = sample_data[i]
+                i += 1
+                if i > len(sample_data):
+                    break
+            data[j] = current
+        return data
+    
+# -----
     
     @staticmethod 
     def seqIndicator(dic: dict, key: str, begin: int, end:int, params: dict, name:str=None):
@@ -282,13 +329,19 @@ class TechnicalAnalysis:
         if TechnicalAnalysis.WINDOW in params.keys():
             window = params[TechnicalAnalysis.WINDOW]
         if TechnicalAnalysis.COEFF in params.keys():
-            coeff = params[TechnicalAnalysis.COEFF]        
+            coeff = params[TechnicalAnalysis.COEFF]
+            
         if key == TechnicalAnalysis.SMA:
             array = TechnicalAnalysis.sma(cl, window)
         elif key == TechnicalAnalysis.ATR:
             array, _ = TechnicalAnalysis.atr(hi, lo, cl, window)
+        elif key == TechnicalAnalysis.ADX:
+            array = TechnicalAnalysis.adx(hi, lo, cl, window)
+        elif key == TechnicalAnalysis.SLOPE:
+            source = params[TechnicalAnalysis.SOURCE]
+            signal = data[source]
+            array = TechnicalAnalysis.slope(signal, window)
         elif key == TechnicalAnalysis.ATR_BAND_UPPER or key == TechnicalAnalysis.ATR_BAND_LOWER:
-            coeff = params[TechnicalAnalysis.COEFF]
             atr = data[TechnicalAnalysis.ATR]
             upper, lower = TechnicalAnalysis.atrBand(cl, atr, coeff)
             if key == TechnicalAnalysis.ATR_BAND_UPPER:
@@ -313,6 +366,10 @@ class TechnicalAnalysis:
             signal = data[source]
             patterns = params[TechnicalAnalysis.PATTERNS]
             array = TechnicalAnalysis.patternMatching(signal, patterns)
+        elif key == TechnicalAnalysis.UPPER_TIMEFRAME:
+            source = params[TechnicalAnalysis.SOURCE]
+            timeframe = params[TechnicalAnalysis.TIMEFRAME]
+            array = TechnicalAnalysis.upperTimeframe(data, source, timeframe, ma_window=window)
         else:
             return None
         
