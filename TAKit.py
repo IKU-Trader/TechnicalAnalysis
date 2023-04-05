@@ -35,6 +35,7 @@ class TAKit:
                     [ta.SLOPE, {ta.SOURCE: 'SMA60', ta.WINDOW: 3}, 'SLOPE_SMA60'],
                     [ta.MA_TREND_BAND, trend_params, 'MA_TREND'],
                     [ta.PATTERN_MATCH, patterns, 'SIGNAL'],
-                    [ta.UPPER_TIMEFRAME, {ta.SOURCE: const.CLOSE, ta.TIMEFRAME: 'H2', ta.WINDOW: 20}, 'H2']
+                    [ta.UPPER_TIMEFRAME, {ta.SOURCE: const.CLOSE, ta.TIMEFRAME: 'H2', ta.WINDOW: 0}, 'H2'],
+                    [ta.UPPER_TIMEFRAME, {ta.SOURCE: const.CLOSE, ta.TIMEFRAME: 'H2', ta.WINDOW: 20}, 'H2_SMA20']
                 ]
         return params

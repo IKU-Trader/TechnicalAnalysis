@@ -14,6 +14,7 @@ from Utils import Utils
 from MathArray import MathArray
 from const import const
 from DataBuffer import Converter
+from TimeUtils import TimeUtils
 
 def nans(length):
     return [np.nan for _ in range(length)]
@@ -275,15 +276,24 @@ class TechnicalAnalysis:
         if ma_window > 0:
             sample_data = TechnicalAnalysis.sma(sample_data, ma_window)
         data = nans(len(time))
+        #Utils.saveArrays('./sampled.csv', [sample_time, sample_data])
         current = np.nan
         i = 0
-        for j, t in enumerate(time):
-            if t == sample_time[i]:
-                current = sample_data[i]
+        for j in range(len(time)):
+            if time[j] >= sample_time[i]:
+                if time[j] == sample_time[i]:
+                    current = sample_data[i]
+                    print(sample_time[i], sample_data[i])
+                else:
+                    if not np.isnan(current):
+                        current = np.nan
                 i += 1
-                if i > len(sample_data):
+                if i >= len(sample_data):
                     break
             data[j] = current
+                
+        # debug
+        #Utils.saveArrays('./debug_upper.csv', [time, data])
         return data
     
 # -----
