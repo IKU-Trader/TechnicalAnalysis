@@ -10,6 +10,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../Utilities'))
 
 import numpy as np
+import math
 from Utils import Utils
 from MathArray import MathArray
 from const import const
@@ -43,6 +44,9 @@ class TechnicalAnalysis:
     ADX: TAMethod = 'adx'
     SLOPE: TAMethod = 'slope'
     
+    BOLLINGER_BAND_UPPER: TAMethod = 'bollinger_band_upper'
+    BOLLINGER_BAND_LOWER: TAMethod = 'bollinger_band_lower'
+    
     ATR_BAND_UPPER: TAMethod = 'atr_band_upper'
     ATR_BAND_LOWER: TAMethod = 'atr_band_lower'
     ATR_BREAKUP_SIGNAL: TAMethod = 'atr_breakup_signal'
@@ -58,6 +62,7 @@ class TechnicalAnalysis:
     TAParam = str
     WINDOW: TAParam = 'window'
     COEFF: TAParam = 'coeff'
+    SIGMA: TAParam = 'sigma'
 
     # MA Trend
     THRESHOLD: TAParam = 'threshold'
@@ -183,7 +188,7 @@ class TechnicalAnalysis:
         return adx
     
     @staticmethod 
-    def slope(array, window):
+    def slope(array: list, window: int):
         data = np.array(array)
         n = len(array)
         out = nans(n)
@@ -195,14 +200,60 @@ class TechnicalAnalysis:
         return out
     
     @staticmethod
-    def atrBand(cl, atr, k):
+    def mean(array):
+        s = 0.0
+        count = 0
+        for a in array:
+            if a is None:
+                continue
+            if np.isnan(a):
+                continue
+            s += a
+            count += 1
+        if count == 0:
+            return (np.nan, count)
+        else:
+            return (s / float(count), count)
+        
+    @staticmethod
+    def stdev(array):
+        mean, count = TechnicalAnalysis.mean(array)
+        if count == 0:
+            return np.nan
+        s = 0.0
+        for a in array:
+            if a is None:
+                continue
+            if np.isnan(a):
+                continue
+            s += (a - mean) * (a - mean)
+        variance = s / float(count)
+        std = math.sqrt(variance)
+        return std
+        
+    @staticmethod
+    def bolingerBand(array: list, window: int, sigma: float):    
+        sma = TechnicalAnalysis.sma(array, window)
+        n = len(array)
+        upper = nans(n)
+        lower = nans(n)
+        for i in range(window - 1, n):
+            mean = sma[i]
+            std = TechnicalAnalysis.stdev(array[i - window + 1: i + 1])
+            if np.isnan(mean) == False and np.isnan(std) == False:
+                upper[i] = mean + std * sigma
+                lower[i] = mean - std * sigma                
+        return (upper, lower)                
+    
+    @staticmethod
+    def atrBand(cl: list, atr: list, k: float):
         m =  MathArray.multiply(atr, k)
         upper = MathArray.addArray(cl, m)
         lower = MathArray.subtractArray(cl, m)
         return (upper, lower)
     
     @staticmethod
-    def breakSignal(op, cl, level, is_up, offset=1):
+    def breakSignal(op: list, cl: list, level: float, is_up: bool, offset: int=1):
         if offset < 0:
             return None
         n = len(cl)
@@ -224,7 +275,7 @@ class TechnicalAnalysis:
         return signal
     
     @staticmethod
-    def maTrendBand(op, hi, lo, cl, ma_list, threshold):
+    def maTrendBand(op: list, hi: list, lo: list, cl: list, ma_list: list, threshold: float):
         w1 = MathArray.subtractArray(ma_list[0], ma_list[1])
         w2 = MathArray.subtractArray(ma_list[1], ma_list[2])
         n = len(w1)
@@ -251,7 +302,7 @@ class TechnicalAnalysis:
         return out
     
     @staticmethod
-    def patternMatching(signal, patterns):
+    def patternMatching(signal: list, patterns: list):
         n = len(signal)
         out = MathArray.full(n, np.nan)
         for [pattern, value, offset] in patterns:
@@ -262,7 +313,7 @@ class TechnicalAnalysis:
         return out
 
     @staticmethod
-    def upperTimeframe(dic, refkey, time_symbol, ma_window=0):
+    def upperTimeframe(dic: dict, refkey: str, time_symbol: str, ma_window: int=0):
         time = dic[const.TIME]
         arrays = [time, dic[const.OPEN], dic[const.HIGH], dic[const.LOW], dic[const.CLOSE]]
         value, unit = const.timeSymbol2elements(time_symbol)
@@ -283,7 +334,6 @@ class TechnicalAnalysis:
             if time[j] >= sample_time[i]:
                 if time[j] == sample_time[i]:
                     current = sample_data[i]
-                    print(sample_time[i], sample_data[i])
                 else:
                     if not np.isnan(current):
                         current = np.nan
@@ -291,9 +341,6 @@ class TechnicalAnalysis:
                 if i >= len(sample_data):
                     break
             data[j] = current
-                
-        # debug
-        #Utils.saveArrays('./debug_upper.csv', [time, data])
         return data
     
 # -----
@@ -336,11 +383,14 @@ class TechnicalAnalysis:
         hi = data[const.HIGH]
         lo = data[const.LOW]
         cl = data[const.CLOSE]
+        
+        # common parameter
         if TechnicalAnalysis.WINDOW in params.keys():
             window = params[TechnicalAnalysis.WINDOW]
         if TechnicalAnalysis.COEFF in params.keys():
             coeff = params[TechnicalAnalysis.COEFF]
             
+        # technical analysis
         if key == TechnicalAnalysis.SMA:
             array = TechnicalAnalysis.sma(cl, window)
         elif key == TechnicalAnalysis.ATR:
@@ -351,6 +401,12 @@ class TechnicalAnalysis:
             source = params[TechnicalAnalysis.SOURCE]
             signal = data[source]
             array = TechnicalAnalysis.slope(signal, window)
+        elif key == TechnicalAnalysis.BOLLINGER_BAND_UPPER:
+            sigma = params[TechnicalAnalysis.SIGMA]
+            array, _ = TechnicalAnalysis.bolingerBand(cl, window, sigma)
+        elif key == TechnicalAnalysis.BOLLINGER_BAND_LOWER:
+            sigma = params[TechnicalAnalysis.SIGMA]
+            _, array = TechnicalAnalysis.bolingerBand(cl, window, sigma)             
         elif key == TechnicalAnalysis.ATR_BAND_UPPER or key == TechnicalAnalysis.ATR_BAND_LOWER:
             atr = data[TechnicalAnalysis.ATR]
             upper, lower = TechnicalAnalysis.atrBand(cl, atr, coeff)

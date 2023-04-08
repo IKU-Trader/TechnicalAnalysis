@@ -12,7 +12,7 @@ from const import const
 class TAKit:
     
     @staticmethod
-    def matrend():
+    def basic():
         trend_params = {ta.MA_KEYS:['SMA5', 'SMA20', 'SMA60'], ta.THRESHOLD:0.05}
         patterns = {
                         ta.SOURCE: 'MA_TREND',
@@ -30,12 +30,14 @@ class TAKit:
                     [ta.SMA, {ta.WINDOW: 60}, 'SMA60'],
                     [ta.ATR, {ta.WINDOW: 14}, 'ATR'],
                     [ta.ADX, {ta.WINDOW: 14}, 'ADX'],
+                    [ta.BOLLINGER_BAND_UPPER, {ta.WINDOW: 14, ta.SIGMA: 2.0}, 'BOLLINGER+'],
+                    [ta.BOLLINGER_BAND_LOWER, {ta.WINDOW: 14, ta.SIGMA: 2.0}, 'BOLLINGER-'],
                     [ta.SLOPE, {ta.SOURCE: 'SMA5', ta.WINDOW: 3}, 'SLOPE_SMA5'],
                     [ta.SLOPE, {ta.SOURCE: 'SMA20', ta.WINDOW: 3}, 'SLOPE_SMA20'],
                     [ta.SLOPE, {ta.SOURCE: 'SMA60', ta.WINDOW: 3}, 'SLOPE_SMA60'],
                     [ta.MA_TREND_BAND, trend_params, 'MA_TREND'],
                     [ta.PATTERN_MATCH, patterns, 'SIGNAL'],
-                    [ta.UPPER_TIMEFRAME, {ta.SOURCE: const.CLOSE, ta.TIMEFRAME: 'H2', ta.WINDOW: 0}, 'H2'],
-                    [ta.UPPER_TIMEFRAME, {ta.SOURCE: const.CLOSE, ta.TIMEFRAME: 'H2', ta.WINDOW: 20}, 'H2_SMA20']
+                    [ta.UPPER_TIMEFRAME, {ta.SOURCE: const.CLOSE, ta.TIMEFRAME: 'H2', ta.WINDOW: 20}, 'H2_SMA20'],
+                    [ta.UPPER_TIMEFRAME, {ta.SOURCE: const.CLOSE, ta.TIMEFRAME: 'H4', ta.WINDOW: 20}, 'H4_SMA20']
                 ]
         return params
