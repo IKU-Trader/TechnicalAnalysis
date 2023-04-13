@@ -10,8 +10,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../MarketData'))
 
 import pandas as pd
-from MarketData import MarketData
-from TA import TechnicalAnalysis as ta
+from market_data import MarketData
+from technical_analysis import TechnicalAnalysis as ta
 
 def test_adx(ohcv):
 

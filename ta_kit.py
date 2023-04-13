@@ -4,8 +4,11 @@ Created on Fri Mar 31 15:33:20 2023
 
 @author: IKU-Trader
 """
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), './'))
 
-from TA import TechnicalAnalysis as ta
+from technical_analysis import TechnicalAnalysis as ta
 from const import const
 
 

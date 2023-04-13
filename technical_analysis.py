@@ -11,11 +11,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../Utilities'))
 
 import numpy as np
 import math
-from Utils import Utils
-from MathArray import MathArray
+from utils import Utils
+from math_array import MathArray
 from const import const
-from DataBuffer import Converter
-from TimeUtils import TimeUtils
+from data_buffer import Converter
+from time_utils import TimeUtils
 
 def nans(length):
     return [np.nan for _ in range(length)]
