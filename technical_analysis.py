@@ -31,7 +31,7 @@ def arrays2dic(tohlcv:[]):
         dic[const.VOLUME] = tohlcv[5]
     return dic
     
-class TechnicalAnalysis:
+class TA:
     # ----- constants
     TAMethod = str
     ATR: TAMethod = 'atr'
@@ -79,6 +79,51 @@ class TechnicalAnalysis:
     PATTERNS: TAParam = 'patterns'
     TIMEFRAME: TAParam = 'timeframe'
     # -----    
+ 
+    @staticmethod
+    def basic_kit():
+
+
+        params = [
+                    [TA.SMA, {TA.WINDOW: 5}, 'SMA5'],
+                    [TA.SMA, {TA.WINDOW: 20}, 'SMA20'],
+                    [TA.SMA, {TA.WINDOW: 60}, 'SMA60'],
+                ]
+        return params
+    
+    @staticmethod
+    def full_kit():
+        trend_params = {TA.MA_KEYS:['SMA5', 'SMA20', 'SMA60'], TA.THRESHOLD:0.05}
+        patterns = {
+                        TA.SOURCE: 'MA_TREND',
+                        TA.PATTERNS:[
+                                [[TA.NO_TREND, TA.UPPER_TREND], 1, 0],
+                                [[TA.UPPER_SUB_TREND, TA.UPPER_TREND], 1, 0],
+                                [[TA.NO_TREND, TA.LOWER_TREND], 2, 0],
+                                [[TA.LOWER_SUB_TREND, TA.LOWER_TREND], 2, 0]
+                                ]
+                    }
+
+        params = [
+                    [TA.SMA, {TA.WINDOW: 5}, 'SMA5'],
+                    [TA.SMA, {TA.WINDOW: 20}, 'SMA20'],
+                    [TA.SMA, {TA.WINDOW: 60}, 'SMA60'],
+                    [TA.ATR, {TA.WINDOW: 14}, 'ATR'],
+                    [TA.ADX, {TA.WINDOW: 14}, 'ADX'],
+                    [TA.BOLLINGER_BAND_UPPER, {TA.WINDOW: 14, TA.SIGMA: 2.0}, 'BOLLINGER+'],
+                    [TA.BOLLINGER_BAND_LOWER, {TA.WINDOW: 14, TA.SIGMA: 2.0}, 'BOLLINGER-'],
+                    [TA.SLOPE, {TA.SOURCE: 'SMA5', TA.WINDOW: 3}, 'SLOPE_SMA5'],
+                    [TA.SLOPE, {TA.SOURCE: 'SMA20', TA.WINDOW: 3}, 'SLOPE_SMA20'],
+                    [TA.SLOPE, {TA.SOURCE: 'SMA60', TA.WINDOW: 3}, 'SLOPE_SMA60'],
+                    [TA.MA_TREND_BAND, trend_params, 'MA_TREND'],
+                    [TA.PATTERN_MATCH, patterns, 'SIGNAL'],
+                    [TA.UPPER_TIMEFRAME, {TA.SOURCE: const.CLOSE, TA.TIMEFRAME: 'H2', TA.WINDOW: 20}, 'H2_SMA20'],
+                    [TA.UPPER_TIMEFRAME, {TA.SOURCE: const.CLOSE, TA.TIMEFRAME: 'H4', TA.WINDOW: 20}, 'H4_SMA20']
+                ]
+        return params
+    
+    
+    #------
     
     @staticmethod 
     def candleBody(open_price,  high_price, low_price, close_price):
@@ -92,7 +137,7 @@ class TechnicalAnalysis:
     
     @staticmethod
     def candleSpike(open_price, high_price, low_price, close_price):
-        is_positive, body, body_low, body_high = TechnicalAnalysis.candleBodey(open_price, high_price, low_price, close_price)
+        is_positive, body, body_low, body_high = TA.candleBodey(open_price, high_price, low_price, close_price)
         spike_high = high_price - body_high
         spike_low = body_low - low_price
         return (spike_high, spike_low)
@@ -137,8 +182,8 @@ class TechnicalAnalysis:
        
     @staticmethod
     def atr(hi, lo, cl, window):
-        trdata = TechnicalAnalysis.tr(hi, lo, cl)
-        out = TechnicalAnalysis.sma(trdata, window)
+        trdata = TA.tr(hi, lo, cl)
+        out = TA.sma(trdata, window)
         return (out, trdata)
     
     @staticmethod
@@ -169,7 +214,7 @@ class TechnicalAnalysis:
                 dmminus[i] = 0   
         diplus = nans(n)
         diminus = nans(n)
-        tr = TechnicalAnalysis().tr(hi, lo, cl)
+        tr = TA.tr(hi, lo, cl)
         for i in range(window, n):
             diplus[i] = 100.0 * sum(dmplus[i - window + 1 : i + 1]) / sum(tr[i - window  + 1: i + 1])
             diminus[i] = 100.0 * sum(dmminus[i - window + 1: i + 1]) / sum(tr[i - window + 1: i + 1])
@@ -177,7 +222,7 @@ class TechnicalAnalysis:
     
     @staticmethod
     def adx(hi, lo, cl, window):
-        (dmplus, dmminus, diplus, diminus) = TechnicalAnalysis().di(hi, lo, cl, window)
+        (dmplus, dmminus, diplus, diminus) = TA.di(hi, lo, cl, window)
         n = len(diplus)
         dx = nans(n)
         for i in range(1, n):
@@ -217,7 +262,7 @@ class TechnicalAnalysis:
         
     @staticmethod
     def stdev(array):
-        mean, count = TechnicalAnalysis.mean(array)
+        mean, count = TA.mean(array)
         if count == 0:
             return np.nan
         s = 0.0
@@ -233,13 +278,13 @@ class TechnicalAnalysis:
         
     @staticmethod
     def bolingerBand(array: list, window: int, sigma: float):    
-        sma = TechnicalAnalysis.sma(array, window)
+        sma = TA.sma(array, window)
         n = len(array)
         upper = nans(n)
         lower = nans(n)
         for i in range(window - 1, n):
             mean = sma[i]
-            std = TechnicalAnalysis.stdev(array[i - window + 1: i + 1])
+            std = TA.stdev(array[i - window + 1: i + 1])
             if np.isnan(mean) == False and np.isnan(std) == False:
                 upper[i] = mean + std * sigma
                 lower[i] = mean - std * sigma                
@@ -279,26 +324,26 @@ class TechnicalAnalysis:
         w1 = MathArray.subtractArray(ma_list[0], ma_list[1])
         w2 = MathArray.subtractArray(ma_list[1], ma_list[2])
         n = len(w1)
-        out = MathArray.full(n, TechnicalAnalysis.NO_TREND)
+        out = MathArray.full(n, TA.NO_TREND)
         for i in range(n):
             if w1[i] > 0 and w2[i] > 0:
-                out[i] = TechnicalAnalysis.UPPER_TREND
+                out[i] = TA.UPPER_TREND
             elif w1[i] > 0 and w2[i] < 0:
-                out[i] = TechnicalAnalysis.UPPER_SUB_TREND
+                out[i] = TA.UPPER_SUB_TREND
             elif w1[i] < 0 and w2[i] < 0:
-                out[i] = TechnicalAnalysis.LOWER_TREND
+                out[i] = TA.LOWER_TREND
             elif w1[i] < 0 and w2[i] > 0:
-                out[i] = TechnicalAnalysis.LOWER_SUB_TREND
-            if out[i] == TechnicalAnalysis.UPPER_TREND:
-                (is_positive, body, body_low, body_high) = TechnicalAnalysis.candleBody(op[i], hi[i], lo[i], cl[i])
+                out[i] = TA.LOWER_SUB_TREND
+            if out[i] == TA.UPPER_TREND:
+                (is_positive, body, body_low, body_high) = TA.candleBody(op[i], hi[i], lo[i], cl[i])
                 if ma_list[1][i] > body_low:
-                    out[i] = TechnicalAnalysis.UPPER_DIP
-            if out[i] == TechnicalAnalysis.LOWER_TREND:
-                (is_positive, body, body_low, body_high) = TechnicalAnalysis.candleBody(op[i], hi[i], lo[i], cl[i])
+                    out[i] = TA.UPPER_DIP
+            if out[i] == TA.LOWER_TREND:
+                (is_positive, body, body_low, body_high) = TA.candleBody(op[i], hi[i], lo[i], cl[i])
                 if ma_list[1][i] < body_high:
-                    out[i] = TechnicalAnalysis.LOWER_DIP            
+                    out[i] = TA.LOWER_DIP            
             if abs(w1[i] / ma_list[1][i] * 100.0) < threshold and abs(w2[i] / ma_list[2][i] * 100.0 < threshold):
-                out[i] = TechnicalAnalysis.NO_TREND
+                out[i] = TA.NO_TREND
         return out
     
     @staticmethod
@@ -325,7 +370,7 @@ class TechnicalAnalysis:
             raise Exception('Bad source key' + refkey)
         sample_data = tohlcv_arrays[index]
         if ma_window > 0:
-            sample_data = TechnicalAnalysis.sma(sample_data, ma_window)
+            sample_data = TA.sma(sample_data, ma_window)
         data = nans(len(time))
         #Utils.saveArrays('./sampled.csv', [sample_time, sample_data])
         current = np.nan
@@ -350,8 +395,8 @@ class TechnicalAnalysis:
         if name is None:
             name = key
         n = len(dic[const.OPEN])
-        if TechnicalAnalysis.WINDOW in params.keys():
-            window = params[TechnicalAnalysis.WINDOW]
+        if TA.WINDOW in params.keys():
+            window = params[TA.WINDOW]
         else:
             window = 0
         if not name in dic.keys():
@@ -366,7 +411,7 @@ class TechnicalAnalysis:
                     data = Utils.sliceDic(dic, begin - window, end)
             else:
                 data = Utils.sliceDic(dic, begin, end)
-        array = TechnicalAnalysis.indicator(data, key, params, name=name, should_set=False)    
+        array = TA.indicator(data, key, params, name=name, should_set=False)    
         if array is None:
             return False
         original = dic[name]
@@ -385,57 +430,57 @@ class TechnicalAnalysis:
         cl = data[const.CLOSE]
         
         # common parameter
-        if TechnicalAnalysis.WINDOW in params.keys():
-            window = params[TechnicalAnalysis.WINDOW]
-        if TechnicalAnalysis.COEFF in params.keys():
-            coeff = params[TechnicalAnalysis.COEFF]
+        if TA.WINDOW in params.keys():
+            window = params[TA.WINDOW]
+        if TA.COEFF in params.keys():
+            coeff = params[TA.COEFF]
             
         # technical analysis
-        if key == TechnicalAnalysis.SMA:
-            array = TechnicalAnalysis.sma(cl, window)
-        elif key == TechnicalAnalysis.ATR:
-            array, _ = TechnicalAnalysis.atr(hi, lo, cl, window)
-        elif key == TechnicalAnalysis.ADX:
-            array = TechnicalAnalysis.adx(hi, lo, cl, window)
-        elif key == TechnicalAnalysis.SLOPE:
-            source = params[TechnicalAnalysis.SOURCE]
+        if key == TA.SMA:
+            array = TA.sma(cl, window)
+        elif key == TA.ATR:
+            array, _ = TA.atr(hi, lo, cl, window)
+        elif key == TA.ADX:
+            array = TA.adx(hi, lo, cl, window)
+        elif key == TA.SLOPE:
+            source = params[TA.SOURCE]
             signal = data[source]
-            array = TechnicalAnalysis.slope(signal, window)
-        elif key == TechnicalAnalysis.BOLLINGER_BAND_UPPER:
-            sigma = params[TechnicalAnalysis.SIGMA]
-            array, _ = TechnicalAnalysis.bolingerBand(cl, window, sigma)
-        elif key == TechnicalAnalysis.BOLLINGER_BAND_LOWER:
-            sigma = params[TechnicalAnalysis.SIGMA]
-            _, array = TechnicalAnalysis.bolingerBand(cl, window, sigma)             
-        elif key == TechnicalAnalysis.ATR_BAND_UPPER or key == TechnicalAnalysis.ATR_BAND_LOWER:
-            atr = data[TechnicalAnalysis.ATR]
-            upper, lower = TechnicalAnalysis.atrBand(cl, atr, coeff)
-            if key == TechnicalAnalysis.ATR_BAND_UPPER:
+            array = TA.slope(signal, window)
+        elif key == TA.BOLLINGER_BAND_UPPER:
+            sigma = params[TA.SIGMA]
+            array, _ = TA.bolingerBand(cl, window, sigma)
+        elif key == TA.BOLLINGER_BAND_LOWER:
+            sigma = params[TA.SIGMA]
+            _, array = TA.bolingerBand(cl, window, sigma)             
+        elif key == TA.ATR_BAND_UPPER or key == TA.ATR_BAND_LOWER:
+            atr = data[TA.ATR]
+            upper, lower = TA.atrBand(cl, atr, coeff)
+            if key == TA.ATR_BAND_UPPER:
                 array = upper
             else:
                 array = lower
-        elif key == TechnicalAnalysis.ATR_BREAKUP_SIGNAL:
-            level = data[TechnicalAnalysis.ATR_BAND_UPPER]
-            array = TechnicalAnalysis.breakSignal(data, level, True)
-        elif key == TechnicalAnalysis.ATR_BREAKDOWN_SIGNAL:
-            level = TechnicalAnalysis.ATR_BAND_LOWER
-            array = TechnicalAnalysis.breakSignal(op, cl, level, False)
-        elif key == TechnicalAnalysis.MA_TREND_BAND:
-            threshold = params[TechnicalAnalysis.THRESHOLD]
-            ma_keys = params[TechnicalAnalysis.MA_KEYS]
+        elif key == TA.ATR_BREAKUP_SIGNAL:
+            level = data[TA.ATR_BAND_UPPER]
+            array = TA.breakSignal(data, level, True)
+        elif key == TA.ATR_BREAKDOWN_SIGNAL:
+            level = TA.ATR_BAND_LOWER
+            array = TA.breakSignal(op, cl, level, False)
+        elif key == TA.MA_TREND_BAND:
+            threshold = params[TA.THRESHOLD]
+            ma_keys = params[TA.MA_KEYS]
             mas = [data[key] for key in ma_keys]
             if len(mas) != 3:
                 raise Exception('Bad MA_TREND_BAND parameter')
-            array = TechnicalAnalysis.maTrendBand(op, hi, lo, cl, mas, threshold)
-        elif key == TechnicalAnalysis.PATTERN_MATCH:
-            source = params[TechnicalAnalysis.SOURCE]
+            array = TA.maTrendBand(op, hi, lo, cl, mas, threshold)
+        elif key == TA.PATTERN_MATCH:
+            source = params[TA.SOURCE]
             signal = data[source]
-            patterns = params[TechnicalAnalysis.PATTERNS]
-            array = TechnicalAnalysis.patternMatching(signal, patterns)
-        elif key == TechnicalAnalysis.UPPER_TIMEFRAME:
-            source = params[TechnicalAnalysis.SOURCE]
-            timeframe = params[TechnicalAnalysis.TIMEFRAME]
-            array = TechnicalAnalysis.upperTimeframe(data, source, timeframe, ma_window=window)
+            patterns = params[TA.PATTERNS]
+            array = TA.patternMatching(signal, patterns)
+        elif key == TA.UPPER_TIMEFRAME:
+            source = params[TA.SOURCE]
+            timeframe = params[TA.TIMEFRAME]
+            array = TA.upperTimeframe(data, source, timeframe, ma_window=window)
         else:
             return None
         
